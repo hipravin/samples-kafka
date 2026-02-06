@@ -1,27 +1,31 @@
 package hipravin.sampleskafka.etl;
 
+import hipravin.sampleskafka.dto.ClockTickEvent;
+import hipravin.sampleskafka.dto.CloskType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.DisposableBean;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.concurrent.ExecutionException;
+import java.time.OffsetDateTime;
+import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 @Component
-public class DataProducer {
+public class DataProducer implements InitializingBean, DisposableBean {
     private static final Logger log = LoggerFactory.getLogger(DataProducer.class);
 
-    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final KafkaTemplate<String, ClockTickEvent> kafkaClockTemplate;
 
-    public DataProducer(KafkaTemplate<String, String> kafkaTemplate) {
-        this.kafkaTemplate = kafkaTemplate;
+    public DataProducer(KafkaTemplate<String, ClockTickEvent> kafkaTemplate) {
+        this.kafkaClockTemplate = kafkaTemplate;
     }
 
     @Autowired
@@ -29,7 +33,8 @@ public class DataProducer {
         log.info("The moment autowired is called");
     }
 
-    @EventListener(ApplicationReadyEvent.class)
+    @EventListener(value = ApplicationReadyEvent.class,
+            condition = "@environment.getProperty('application.clock-producer.enabled') == 'true'")
     public void clockSecondsIndefinitely() {
         log.info("The moment ApplicationReadyEvent is received");
 
@@ -38,13 +43,18 @@ public class DataProducer {
         var scheduler = Executors.newScheduledThreadPool(4);
 
         scheduler.scheduleAtFixedRate(() -> {
-            var now = LocalDateTime.now();
-
-            var sr = kafkaTemplate.send("clock-long-topic", String.valueOf(now.getSecond()), now.format(DateTimeFormatter.ISO_TIME) + ", " + Thread.currentThread().getName());
+            var now = OffsetDateTime.now();
             try {
-                log.info("Send result: {}", sr.get().toString());
-            } catch (InterruptedException | ExecutionException e) {
-                log.error(e.getMessage(), e);
+                var sr = kafkaClockTemplate.send("clock-long-topic", String.valueOf(now.getSecond()),
+                        new ClockTickEvent(CloskType.LONG, now, UUID.randomUUID().toString()));
+                sr.thenAccept(r -> {
+                    log.info("Send result: {}", r);
+                }).exceptionally(e -> {
+                    log.error(e.getMessage(), e);
+                    return null;
+                });
+            } catch (RuntimeException e) {
+                log.error("Failed to send: {}", e.getMessage(), e);
             }
         }, delayMillis, rateMillis, TimeUnit.MILLISECONDS);
 
@@ -54,5 +64,15 @@ public class DataProducer {
             Thread.currentThread().interrupt();
         }
         scheduler.shutdown();
+    }
+
+    @Override
+    public void destroy() throws Exception {
+        log.info("The moment destroy is called");
+    }
+
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        log.info("The moment afterPropertiesSet is called");
     }
 }

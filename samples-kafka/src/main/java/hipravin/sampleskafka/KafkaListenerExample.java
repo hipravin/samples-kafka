@@ -1,5 +1,6 @@
 package hipravin.sampleskafka;
 
+import hipravin.sampleskafka.dto.ClockTickEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -13,21 +14,21 @@ public class KafkaListenerExample {
     private static final Logger log = LoggerFactory.getLogger(KafkaListenerExample.class);
 
     @KafkaListener(topics = {"clock-short-topic","clock-long-topic"}, groupId = "group1")
-    void listenerG1(@Payload String data,
+    void listenerG1(@Payload ClockTickEvent tickEvent,
                   @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
                   @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
                   @Header(KafkaHeaders.OFFSET) long offset) {
         log.info("Received [{}] from group1, partition-{} with offset-{}, topic {}",
-                data, partition, offset, topic);
+                tickEvent, partition, offset, topic);
     }
 
     @KafkaListener(topics = {"clock-short-topic","clock-long-topic"}, groupId = "group2")
-    void listenerG2(@Payload String data,
+    void listenerG2(@Payload ClockTickEvent tickEvent,
                   @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
                   @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
                   @Header(KafkaHeaders.OFFSET) long offset) {
         log.info("Received [{}] from group2, partition-{} with offset-{}, topic {}",
-                data, partition, offset, topic);
+                tickEvent, partition, offset, topic);
     }
 
 }
