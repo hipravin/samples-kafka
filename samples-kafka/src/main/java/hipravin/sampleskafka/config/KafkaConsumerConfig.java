@@ -17,6 +17,8 @@ public class KafkaConsumerConfig {
         this.kafkaProperties = kafkaProperties;
     }
 
+
+
 //    @Bean
 //    public ConsumerFactory<String, ClockTickEvent> consumerFactory() {
 //        Map<String, Object> props = new HashMap<>();

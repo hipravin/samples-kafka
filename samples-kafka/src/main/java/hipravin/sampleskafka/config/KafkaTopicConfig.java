@@ -17,7 +17,10 @@ public class KafkaTopicConfig {
 
     @Bean
     NewTopic clockSecondsTopic() {
-        return TopicBuilder.name("clock-long-topic").partitions(2).build();
+        return TopicBuilder.name("clock-long-topic")
+                .partitions(10)
+                .replicas(1)
+                .build();
     }
 
     @Bean
